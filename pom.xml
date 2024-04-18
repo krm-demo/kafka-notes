@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.krmdemo</groupId>
+  <artifactId>kafka-inspect</artifactId>
+  <version>1.0</version>
+  <name>hello</name>
+  <description>'Kafka Inspector' as CLI, Web and REST</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <spring.boot.version>3.2.1</spring.boot.version>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <maven.plugin.validation>VERBOSE</maven.plugin.validation>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!--
+        It's very important to keep 2 properties bellow as is, otherwise -  extracting the real timestamp
+        of the maven-build will be very unstable and of unpredictable format. (it's about maven legacy)
+    -->
+    <application.build.timestamp>${maven.build.timestamp}</application.build.timestamp>
+    <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss.SSS'Z'</maven.build.timestamp.format>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter</artifactId>
+      <version>${spring.boot.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli-spring-boot-starter</artifactId>
+      <version>4.7.5</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.30</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.9</version>
+    </dependency>
+    <!--suppress VulnerableLibrariesLocal -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <version>${spring.boot.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>${basedir}/src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>**/application*.yml</include>
+          <include>**/application*.yaml</include>
+          <include>**/application*.properties</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>${basedir}/src/main/resources</directory>
+        <excludes>
+          <exclude>**/application*.yml</exclude>
+          <exclude>**/application*.yaml</exclude>
+          <exclude>**/application*.properties</exclude>
+        </excludes>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.12.1</version>
+        <configuration>
+          <compilerArgument>-proc:full</compilerArgument>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <version>${spring.boot.version}</version>
+        <configuration>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>repackage</id>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
