@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Profile;
 
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -16,6 +17,7 @@ import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
  * A simple Spring-Boot command-line application, that dumps to standard output
  * the same information as 'hello.sh' script and 'Hello.java'.
  */
+@Profile("dev")
 @SpringBootApplication
 public class KafkaInspectCmd implements CommandLineRunner {
 
