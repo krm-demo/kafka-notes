@@ -1,0 +1,15 @@
+@media (min-width: 768px) {
+
+.navbar-brand.abs {
+    position: absolute;
+    width: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+#my-left-column {
+    border: 1px solid blue;
+}
+
+} /* of @media(...) */
