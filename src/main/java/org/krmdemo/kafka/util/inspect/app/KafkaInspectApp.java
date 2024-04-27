@@ -47,6 +47,21 @@ public class KafkaInspectApp implements WebMvcConfigurer {
         log.info(mappingDump);
     }
 
+    @Resource(name = "data-source-embedded-H2")
+    private DataSource dsH2;
+
+    @Autowired
+    private JdbcHelper jdbcHelper;
+
+    @EventListener(ApplicationReadyEvent.class)
+    void onApplicationReady(final ApplicationReadyEvent event) throws Exception {
+        log.info("application '{}' is ready", springAppName);
+        log.info("embedded H2 metadata: " + JdbcUtils.dumpMetadata(dsH2));
+        if (StringUtils.isBlank(jdbcHelper.createTableKafkaRecord())) {
+            log.info("a table for kafka-record was created");
+        }
+    }
+    
     /**
      * JVM entry-point
      * @param args command-line arguments
