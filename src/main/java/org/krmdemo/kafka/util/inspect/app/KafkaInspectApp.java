@@ -1,17 +1,23 @@
 package org.krmdemo.kafka.util.inspect.app;
 
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.krmdemo.kafka.util.inspect.app.jdbc.JdbcHelper;
+import org.krmdemo.kafka.util.inspect.app.jdbc.JdbcUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.lang.NonNull;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
 
+import javax.sql.DataSource;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -25,8 +31,8 @@ import static org.krmdemo.kafka.util.SpringWebUtils.getHandlerMapping;
 @SpringBootApplication
 public class KafkaInspectApp implements WebMvcConfigurer {
 
-    @Autowired
-    ApplicationContext applicationContext;
+    @Value("${spring.application.name}")
+    private String springAppName;
 
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
@@ -61,7 +67,7 @@ public class KafkaInspectApp implements WebMvcConfigurer {
             log.info("a table for kafka-record was created");
         }
     }
-    
+
     /**
      * JVM entry-point
      * @param args command-line arguments

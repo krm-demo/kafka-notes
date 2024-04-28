@@ -11,9 +11,10 @@ class HelloTest {
     @Test
     void testHello() {
         System.out.println("Hello from " + getClass().getSimpleName());
+        log.error("this is a test error", new RuntimeException("test exception"));
         log.warn("this is a warning !!!");
-        log.warn("info about logger-class: " + log.getClass());
-        log.info("some debugging log-message with params: '{}' and '{}'",
+        log.info("info about logger-class: " + log.getClass());
+        log.debug("some debugging log-message with params: '{}' and '{}'",
             "la-la-la", ZonedDateTime.now());
     }
 }

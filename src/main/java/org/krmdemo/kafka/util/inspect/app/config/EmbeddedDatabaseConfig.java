@@ -1,4 +1,4 @@
-package com.chase.digital.payment.wire.kafka.util.photonhelloworld;
+package org.krmdemo.kafka.util.inspect.app.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -19,7 +19,7 @@ public class EmbeddedDatabaseConfig {
     public DataSource getDataSource() {
         DataSourceBuilder<?> dataSourceBuilder = DataSourceBuilder.create();
         dataSourceBuilder.driverClassName(DRIVER_H2);
-        dataSourceBuilder.url("jdbc:h2:mem:hello-world");
+        dataSourceBuilder.url("jdbc:h2:mem:topics");
         dataSourceBuilder.username("SA");
         dataSourceBuilder.password("");
         DataSource dataSource = dataSourceBuilder.build();

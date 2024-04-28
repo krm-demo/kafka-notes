@@ -17,8 +17,8 @@ import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
  * A simple Spring-Boot command-line application, that dumps to standard output
  * the same information as 'hello.sh' script and 'Hello.java'.
  */
-@Profile("dev")
-@SpringBootApplication
+//@Profile("dev")
+//@SpringBootApplication
 public class KafkaInspectCmd implements CommandLineRunner {
 
     @Value("${spring.application.name}")

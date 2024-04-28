@@ -1,4 +1,4 @@
-package org.krmdemo.kafka.util;
+package org.krmdemo.kafka.util.inspect.app.jdbc;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;

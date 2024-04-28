@@ -1,4 +1,4 @@
-package com.chase.digital.payment.wire.kafka.util.photonhelloworld.jdbc;
+package org.krmdemo.kafka.util.inspect.app.jdbc;
 
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,7 @@ import java.nio.charset.Charset;
 @Component
 public class JdbcHelper {
 
-    @Resource(name = "jdbc-template-embedded-H2")
+    @Resource(name = "jdbc-template-embedded-H2") // <-- maybe using spring-profile is better
     JdbcTemplate jdbcTemplate;
 
     public String createTableKafkaRecord() {

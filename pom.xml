@@ -6,7 +6,7 @@
   <groupId>org.krmdemo</groupId>
   <artifactId>kafka-inspect</artifactId>
   <version>1.0</version>
-  <name>hello</name>
+  <name>kafka-inspect</name>
   <description>'Kafka Inspector' as CLI, Web and REST</description>
 
   <properties>
@@ -24,27 +24,40 @@
     <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss.SSS'Z'</maven.build.timestamp.format>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <!--
+            It's necessary to include with we are using "Spring Boot" without parent POM.
+            Here is the article with explanation: https://www.baeldung.com/spring-boot-dependency-management-custom-parent
+        -->
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring.boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter</artifactId>
-      <version>${spring.boot.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <version>${spring.boot.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-thymeleaf</artifactId>
-      <version>${spring.boot.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
-      <version>${spring.boot.version}</version>
     </dependency>
+
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli-spring-boot-starter</artifactId>
@@ -58,6 +71,16 @@
     </dependency>
 
     <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.30</version>
@@ -67,6 +90,16 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>2.0.9</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.16.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.14.0</version>
     </dependency>
 
     <!--suppress VulnerableLibrariesLocal -->
