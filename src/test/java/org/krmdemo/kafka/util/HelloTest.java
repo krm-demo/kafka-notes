@@ -11,7 +11,7 @@ class HelloTest {
     @Test
     void testHello() {
         System.out.println("Hello from " + getClass().getSimpleName());
-        log.error("this is a test error", new RuntimeException("test exception"));
+        log.error("this is a test error"); // , new RuntimeException("test exception"));
         log.warn("this is a warning !!!");
         log.info("info about logger-class: " + log.getClass());
         log.debug("some debugging log-message with params: '{}' and '{}'",

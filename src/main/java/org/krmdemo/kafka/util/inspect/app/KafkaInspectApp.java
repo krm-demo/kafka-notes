@@ -25,8 +25,10 @@ import static java.lang.System.identityHashCode;
 import static org.krmdemo.kafka.util.StreamUtils.stream;
 import static org.krmdemo.kafka.util.SpringWebUtils.getHandlerMapping;
 
+/**
+ * Spring-Boot entry-point of "kafka-inspect" application
+ */
 @Slf4j
-@Profile("!dev")
 //@EnableWebMvc
 @SpringBootApplication
 public class KafkaInspectApp implements WebMvcConfigurer {
@@ -53,23 +55,20 @@ public class KafkaInspectApp implements WebMvcConfigurer {
         log.info(mappingDump);
     }
 
-    @Resource(name = "data-source-embedded-H2")
-    private DataSource dsH2;
-
     @Autowired
     private JdbcHelper jdbcHelper;
 
     @EventListener(ApplicationReadyEvent.class)
     void onApplicationReady(final ApplicationReadyEvent event) throws Exception {
         log.info("application '{}' is ready", springAppName);
-        log.info("embedded H2 metadata: " + JdbcUtils.dumpMetadata(dsH2));
+        log.info("embedded H2 metadata: " + jdbcHelper.dumpEmbeddedMetadata());
         if (StringUtils.isBlank(jdbcHelper.createTableKafkaRecord())) {
             log.info("a table for kafka-record was created");
         }
     }
 
     /**
-     * JVM entry-point
+     * JVM entry-point of Spring-Boot application "kafka-inspect"
      * @param args command-line arguments
      */
     public static void main(String[] args) {

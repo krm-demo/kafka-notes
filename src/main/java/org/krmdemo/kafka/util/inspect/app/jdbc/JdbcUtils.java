@@ -15,6 +15,9 @@ import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.List;
 
+/**
+ * Utility class to work with JDBC
+ */
 @Slf4j
 public class JdbcUtils {
 
@@ -49,39 +52,6 @@ public class JdbcUtils {
             err.setMessage(sqlEx.getMessage());
             err.setStackTrace(ExceptionUtils.getRootCauseStackTraceList(sqlEx));
             return err;
-        }
-    }
-
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class MetaData {
-        private String productName;
-        private String productVersion;
-        private String driverName;
-        private String driverVersion;
-        private String schema;
-        private String catalog;
-        private int transactionIsolation;
-        private boolean autoCommit;
-        private boolean readonly;
-    }
-
-    public static String dumpMetadata(DataSource dataSource) {
-        try (Connection conn = dataSource.getConnection()){
-            MetaData metaData = new MetaData();
-            metaData.setAutoCommit(conn.getAutoCommit());
-            metaData.setReadonly(conn.isReadOnly());
-            metaData.setSchema(conn.getSchema());
-            metaData.setSchema(conn.getCatalog());
-            DatabaseMetaData connMetaData = conn.getMetaData();
-            metaData.setProductName(connMetaData.getDatabaseProductName());
-            metaData.setProductVersion(connMetaData.getDatabaseProductVersion());
-            metaData.setDriverName(connMetaData.getDriverName());
-            metaData.setDriverVersion(connMetaData.getDriverVersion());
-            metaData.setTransactionIsolation(connMetaData.getDefaultTransactionIsolation());
-            return dumpAsJson(metaData);
-        } catch (SQLException sqlEx) {
-            return dumpAsJson(JdbcError.valueOf(sqlEx));
         }
     }
 
