@@ -1,11 +1,17 @@
 package org.krmdemo.kafka.util;
 
-import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsOptions;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
+import org.apache.kafka.clients.admin.ListTopicsResult;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -27,6 +33,9 @@ import static org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
 import static org.krmdemo.kafka.util.StreamUtils.toLinkedMap;
 
+/**
+ * This category of tests must be executed only one maven-profile "cloud" is on.
+ */
 @Tag("cloud")
 public class ConfluentCloudTest {
     //  +------------+------------------------------------------------------------------+
@@ -48,7 +57,7 @@ public class ConfluentCloudTest {
             password='+wulJ8RvIrOBvPu2O+cdhgcwvoeBUhiNyykoJfkEYYK9x+EjwMapTOwLWVi1wRBi';""");
     }};
 
-    @Test
+    //@Test <-- temporary commented out to verify maven-profile "cloud"
     void testProducerTopic01() throws Exception {
         try (final Producer<String, String> producer = kafkaProducer()) {
             ProducerRecord<String, String> prOne = new ProducerRecord<>("my-topic-01", 0, "key-one", "some-payload-one");

@@ -15,7 +15,11 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <maven.plugin.validation>VERBOSE</maven.plugin.validation>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <encoding>UTF-8</encoding>
+    <project.build.sourceEncoding>${encoding}</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>${encoding}</project.reporting.outputEncoding>
+    <project.resources.sourceEncoding>${encoding}</project.resources.sourceEncoding>
     <!--
         It's very important to keep 2 properties bellow as is, otherwise -  extracting the real timestamp
         of the maven-build will be very unstable and of unpredictable format. (it's about maven legacy)
@@ -143,6 +147,28 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-help-plugin</artifactId>
+        <version>3.4.0</version>
+        <executions>
+          <execution>
+            <id>show-profiles</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>active-profiles</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <propertiesEncoding>${encoding}</propertiesEncoding>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.12.1</version>
         <configuration>
@@ -154,7 +180,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
         <configuration>
-          <excludedGroups>la-la-la</excludedGroups>
+          <groups>none()</groups>
         </configuration>
       </plugin>
       <plugin>
