@@ -8,6 +8,7 @@ import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -31,7 +32,9 @@ import static org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL
 import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
+import static org.krmdemo.kafka.util.KafkaUtils.streamTopicPartition;
 import static org.krmdemo.kafka.util.StreamUtils.toLinkedMap;
+import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
 
 /**
  * This category of tests must be executed only one maven-profile "cloud" is on.
@@ -79,15 +82,17 @@ public class ConfluentCloudTest {
         try (AdminClient adminClient = kafkaAdminClient()) {
             //DescribeClusterResult dcr = adminClient.describeCluster();
             ListTopicsResult ltr = adminClient.listTopics(new ListTopicsOptions().listInternal(true));
-            System.out.println("adminClient.listTopics.listings:\n" +
-                ltr.listings().get().stream().map(it -> "- " + it).collect(joining("\n")));
             Set<String> topicNames = ltr.names().get();
+            Collection<TopicListing> topicListings = ltr.listings().get();
+            Map<String, TopicListing> topicListingsMap = topicListings.stream()
+                .collect(toSortedMap(TopicListing::name, identity()));
             DescribeTopicsOptions dtOpts = new DescribeTopicsOptions().includeAuthorizedOperations(true);
             for (var entry : adminClient.describeTopics(topicNames, dtOpts).topicNameValues().entrySet()) {
                 String topicName = entry.getKey();
                 TopicDescription td = entry.getValue().get();
+                TopicListing tl = topicListingsMap.get(topicName);
                 List<Integer> partitions = td.partitions().stream().map(TopicPartitionInfo::partition).toList();
-                System.out.println("::" + entry.getKey() + "::\n" + partitions + " --> " + td.authorizedOperations());
+                System.out.println("::" + entry.getKey() + ":: " + tl + "\n" + partitions + " --> " + td.authorizedOperations());
                 Map<TopicPartition, OffsetSpec> tpoMapEarliest = streamTopicPartition(td, topicName)
                     .collect(toLinkedMap(identity(), tp -> OffsetSpec.earliest()));
                 var tpToEarliest = adminClient.listOffsets(tpoMapEarliest).all().get();
@@ -107,9 +112,7 @@ public class ConfluentCloudTest {
         }
     }
 
-    private static Stream<TopicPartition> streamTopicPartition(TopicDescription td, String topicName) {
-        return td.partitions().stream().map(tpi -> new TopicPartition(topicName, tpi.partition()));
-    }
+
 
     private static KafkaProducer<String, String> kafkaProducer() {
         Map<String, Object> propsProducer = new HashMap<>(PROPS_KAFKA_CLUSTER);
