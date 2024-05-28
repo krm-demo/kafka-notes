@@ -24,6 +24,7 @@ public class StreamUtils {
     public static <T> Stream<T> stream(Iterator<T> iter) {
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED), false);
     }
+
     /**
      * @param enumeration {@link Enumeration} of type {@link T}
      * @return ordered stream of elements in {@link Enumeration}
@@ -31,6 +32,26 @@ public class StreamUtils {
      */
     public static <T> Stream<T> stream(Enumeration<T> enumeration) {
         return stream(enumeration.asIterator());
+    }
+
+    /**
+     * The same as {@link Collectors#toCollection}, but produces {@link LinkedHashSet}.
+     *
+     * @param <T> the type of the input elements
+     * @return a {@code Collector} which collects all the input elements into a {@link LinkedHashSet}.
+     */
+    public static <T extends Comparable<T>> Collector<T, ?, SequencedSet<T>> toSeqSet() {
+        return Collectors.toCollection(LinkedHashSet::new);
+    }
+
+    /**
+     * The same as {@link Collectors#toCollection}, but produces {@link TreeSet}.
+     *
+     * @param <T> the type of the input elements
+     * @return a {@code Collector} which collects all the input elements into a {@link TreeSet}.
+     */
+    public static <T extends Comparable<T>> Collector<T, ?, SortedSet<T>> toSortedSet() {
+        return Collectors.toCollection(TreeSet::new);
     }
 
     /**

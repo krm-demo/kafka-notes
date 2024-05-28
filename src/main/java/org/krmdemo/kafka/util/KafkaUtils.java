@@ -7,6 +7,8 @@ import java.util.stream.Stream;
 
 public class KafkaUtils {
 
+
+
     /**
      * @param td kafka-topic details (including list of partition's numbers)
      * @param topicName the name of kafka-topic

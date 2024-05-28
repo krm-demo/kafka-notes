@@ -1,14 +1,12 @@
 package org.krmdemo.kafka.util.inspect.admin;
 
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.admin.DescribeTopicsOptions;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
@@ -18,13 +16,19 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
+import org.krmdemo.kafka.util.inspect.JsonResult;
+import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
+import org.krmdemo.kafka.util.inspect.KafkaFutureErrors;
 
 import java.util.*;
 
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.emptySortedMap;
+import static java.util.Collections.unmodifiableSortedMap;
 import static java.util.function.UnaryOperator.identity;
 import static org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.clients.admin.AdminClientConfig.CLIENT_DNS_LOOKUP_CONFIG;
@@ -34,6 +38,8 @@ import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
 import static org.krmdemo.kafka.util.KafkaUtils.streamTopicPartition;
 import static org.krmdemo.kafka.util.StreamUtils.toLinkedMap;
 import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
+import static org.krmdemo.kafka.util.inspect.JsonResult.dumpAsJson;
+import static org.krmdemo.kafka.util.inspect.KafkaFutureErrors.kfGet;
 
 @Slf4j
 public class KafkaBrokerAdmin {
@@ -50,8 +56,16 @@ public class KafkaBrokerAdmin {
             password='+wulJ8RvIrOBvPu2O+cdhgcwvoeBUhiNyykoJfkEYYK9x+EjwMapTOwLWVi1wRBi';""");
     }};;
 
+    private static final DescribeClusterOptions DESCRIBE_CLUSTER_OTIONS =
+        new DescribeClusterOptions().includeAuthorizedOperations(true);
+    private static final DescribeTopicsOptions DESCRIBE_TOPICS_OTIONS =
+        new DescribeTopicsOptions().includeAuthorizedOperations(true);
+
+
     private final Map<String, Object> adminProps = new LinkedHashMap<>(CLOUD_CONFIG_PROPS);
+    private ClusterInfo clusterInfo = null;
     private SortedMap<String, KafkaBrokerTopic> topics = emptySortedMap();
+    private List<KafkaFutureErrors.KafkaGetError<?>> listTopicsErrors = null;
 
     private final transient AdminClient adminClient;
 
@@ -66,50 +80,58 @@ public class KafkaBrokerAdmin {
         return asList(StringUtils.split(bootstrapServers, ",;"));
     }
 
-    public ReconcileInfo refresh() {
-        try {
-            ReconcileInfo reconcileInfo = new ReconcileInfo();
-            reconcileInfo.prevState = this.topics;
-            reconcileInfo.nextState = loadTopics();
-            // TODO: here should be a condition whether to accept the refresh or to continue waiting for some condition
-            this.topics = reconcileInfo.nextState;
-            return reconcileInfo;
-        } catch (Exception ex) {
-            throw new IllegalStateException("exception when refreshing " + this, ex);
-        }
+    @JsonProperty("topics")
+    public SortedMap<String, KafkaBrokerTopic> topics() {
+        return unmodifiableSortedMap(topics);
     }
 
-    public SortedMap<String, KafkaBrokerTopic> loadTopics() throws Exception {
+    public ReconcileInfo refresh() {
+        this.clusterInfo = new ClusterInfo(adminClient.describeCluster(DESCRIBE_CLUSTER_OTIONS));
+        ReconcileInfo reconcileInfo = new ReconcileInfo();
+        reconcileInfo.prevState = this.topics;
+        reconcileInfo.nextState = listTopics();
+        this.topics = reconcileInfo.nextState;
+        return reconcileInfo;
+    }
+
+    public SortedMap<String, KafkaBrokerTopic> listTopics() {
         log.info("start loading topics for " + bootstrapServersList());
+        KafkaFutureErrors.clear();
         SortedMap<String, KafkaBrokerTopic> result = new TreeMap<>();
         ListTopicsResult ltr = adminClient.listTopics(new ListTopicsOptions().listInternal(true));
-        Set<String> topicNames = ltr.names().get();
-        Collection<TopicListing> topicListings = ltr.listings().get();
+        Set<String> topicNames = kfGet(ltr.names()).orElse(emptySet());
+
+        Collection<TopicListing> topicListings = kfGet(ltr.listings()).orElse(emptyList());
         Map<String, TopicListing> topicListingsMap = topicListings.stream()
             .collect(toSortedMap(TopicListing::name, identity()));
-        DescribeTopicsOptions dtOpts = new DescribeTopicsOptions().includeAuthorizedOperations(true);
-        for (var entry : adminClient.describeTopics(topicNames, dtOpts).topicNameValues().entrySet()) {
+        log.info("topicListingsMap --> " + dumpAsJson(topicListingsMap));
+
+        for (var entry : adminClient.describeTopics(topicNames, DESCRIBE_TOPICS_OTIONS).topicNameValues().entrySet()) {
             String topicName = entry.getKey();
-            TopicDescription td = entry.getValue().get();
-            TopicListing tl = topicListingsMap.get(topicName);
+            TopicDescription td = kfGet(entry.getValue()).orElse(null);
+            if (td == null) {
+                log.warn("skip describing the topic '{}'", topicName);
+                continue;
+            }
             KafkaBrokerTopic kbt = new KafkaBrokerTopic();
-            kbt.setTopicListing(tl);
             kbt.setTopicDescription(td);
             result.put(topicName, kbt);
+
             List<Integer> partitions = td.partitions().stream().map(TopicPartitionInfo::partition).toList();
-            log.info("::" + entry.getKey() + ":: " + tl + "\n" + partitions + " --> " + td.authorizedOperations());
+            log.info("::" + entry.getKey() + ":: " + partitions  + " --> " + td.authorizedOperations());
             Map<TopicPartition, OffsetSpec> tpoMapEarliest = streamTopicPartition(td, topicName)
                 .collect(toLinkedMap(identity(), tp -> OffsetSpec.earliest()));
-            var tpToEarliest = adminClient.listOffsets(tpoMapEarliest).all().get();
+            var tpToEarliest = kfGet(adminClient.listOffsets(tpoMapEarliest).all()).orElse(emptyMap());
             Map<TopicPartition, OffsetSpec> tpoMapLatest = streamTopicPartition(td, topicName)
                 .collect(toLinkedMap(identity(), tp -> OffsetSpec.latest()));
-            var tpToLatest = adminClient.listOffsets(tpoMapLatest).all().get();
+            var tpToLatest = kfGet(adminClient.listOffsets(tpoMapLatest).all()).orElse(emptyMap());
             streamTopicPartition(td, topicName).forEach(tp -> {
                 log.info(tp.topic() + "[" + tp.partition() + "]: ( " +
                     tpToEarliest.get(tp).offset() + " ; " +
                     tpToLatest.get(tp).offset() + " )");
             });
         }
+        this.listTopicsErrors = KafkaFutureErrors.lastErrors();
         log.info("finish loading topics for " + bootstrapServersList() + ": " + result.size() + " were loaded");
         return result;
     }
