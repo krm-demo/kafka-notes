@@ -89,7 +89,7 @@ public class JsonResult {
         private final List<NodeInfo> nodes;
         private final NodeInfo controller;
         private final Set<AclOperation> authorizedOperations;
-        private final List<KafkaFutureErrors.KafkaGetError<?>> errors;
+        private final List<AnyError> errors;
         public ClusterInfo(DescribeClusterResult dcr) {
             KafkaFutureErrors.clear();
             this.clusterId = kfGet(dcr.clusterId()).orElse("");

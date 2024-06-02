@@ -16,6 +16,8 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
+import org.krmdemo.kafka.util.inspect.JsonResult;
+import org.krmdemo.kafka.util.inspect.JsonResult.AnyError;
 import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
 import org.krmdemo.kafka.util.inspect.KafkaFutureErrors;
 
@@ -64,7 +66,7 @@ public class KafkaInspector {
     private final Map<String, Object> adminProps = new LinkedHashMap<>(CLOUD_CONFIG_PROPS);
     private ClusterInfo clusterInfo = null;
     private SortedMap<String, KafkaBrokerTopic> topics = emptySortedMap();
-    private List<KafkaFutureErrors.KafkaGetError<?>> listTopicsErrors = null;
+    private List<AnyError> listTopicsErrors = null;
 
     private final transient AdminClient adminClient;
 
