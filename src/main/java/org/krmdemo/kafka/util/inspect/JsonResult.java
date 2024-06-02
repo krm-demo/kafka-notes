@@ -15,6 +15,8 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
+import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartitionInfo;
@@ -24,12 +26,16 @@ import org.apache.kafka.common.acl.AclOperation;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
+import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
 import static org.krmdemo.kafka.util.inspect.KafkaFutureErrors.kfGet;
 
+/**
+ * Helper classes and utility-methods to construct inspecting objects and dump them in a JSON-format.
+ */
 @Slf4j
 public class JsonResult {
 
@@ -100,13 +106,21 @@ public class JsonResult {
     public static class OffsetRange {
         private Long offsetMin;
         private Long offsetMax;
-        private Long timestampMin;
-        private Long timestampMax;
+//        private Long timestampMin;
+//        private Long timestampMax;
         @JsonGetter("count") public long count() {
-            return offsetMin == null || offsetMax == null ? 0 : (offsetMax - offsetMin) + 1;
+            return offsetMin == null || offsetMax == null ? 0 : (offsetMax - offsetMin);
         }
-        @JsonGetter("duration") public long duration() {
-            return timestampMin == null || timestampMax == null ? 0 : (timestampMax - timestampMin) + 1;
+//        @JsonGetter("duration") public long duration() {
+//            return timestampMin == null || timestampMax == null ? 0 : (timestampMax - timestampMin);
+//        }
+        @JsonGetter("interval") public String intervalOffsets() {
+            return count() == 0 ? "<empty-offset-range>" : format("( %d ; %d )", offsetMin, offsetMax);
+        }
+        public OffsetRange(@NonNull ListOffsetsResultInfo offsetsEarliest,
+                           @NonNull ListOffsetsResultInfo offsetsLatest) {
+            this.offsetMin = offsetsEarliest.offset();
+            this.offsetMax = offsetsLatest.offset();
         }
     }
 
@@ -118,12 +132,15 @@ public class JsonResult {
         private final NodeInfo leaderNode;
         private final List<NodeInfo> replicas;
         private final List<NodeInfo> replicasInSync;
-        private final OffsetRange range = new OffsetRange();
+        private final OffsetRange range = null;
         public PartitionInfo(TopicPartitionInfo tpi) {
             this.partitionNum = tpi.partition();
             this.leaderNode = new NodeInfo(tpi.leader());
             this.replicas = tpi.replicas().stream().map(NodeInfo::new).toList();
             this.replicasInSync = tpi.isr().stream().map(NodeInfo::new).toList();
+        }
+        public boolean hasRange() {
+            return range != null;
         }
     }
 

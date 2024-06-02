@@ -5,9 +5,19 @@ import org.apache.kafka.common.TopicPartition;
 
 import java.util.stream.Stream;
 
+import static java.lang.String.format;
+
 public class KafkaUtils {
 
-
+    /**
+     *
+     * @param topicName the name of kafka-topic
+     * @param partitionNum the number of kafka-partition with the kafka-topic
+     * @return an at-sign- "@"-separated string like "<code><i>topic-name</i><b>@</b><i>partition-name</i></code>"
+     */
+    public static String tpKey(String topicName, int partitionNum) {
+        return format("%s@%d", topicName, partitionNum);
+    }
 
     /**
      * @param td kafka-topic details (including list of partition's numbers)

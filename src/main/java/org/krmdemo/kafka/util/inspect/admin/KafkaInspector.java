@@ -16,7 +16,6 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
-import org.krmdemo.kafka.util.inspect.JsonResult;
 import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
 import org.krmdemo.kafka.util.inspect.KafkaFutureErrors;
 
@@ -42,7 +41,7 @@ import static org.krmdemo.kafka.util.inspect.JsonResult.dumpAsJson;
 import static org.krmdemo.kafka.util.inspect.KafkaFutureErrors.kfGet;
 
 @Slf4j
-public class KafkaBrokerAdmin {
+public class KafkaInspector {
 
     private static final Map<String, Object> CLOUD_CONFIG_PROPS = new LinkedHashMap<>() {{
         put(CLIENT_DNS_LOOKUP_CONFIG, "use_all_dns_ips");
@@ -69,7 +68,7 @@ public class KafkaBrokerAdmin {
 
     private final transient AdminClient adminClient;
 
-    public KafkaBrokerAdmin(@NonNull String bootstrapServers) {
+    public KafkaInspector(@NonNull String bootstrapServers) {
         this.adminProps.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         this.adminClient = KafkaAdminClient.create(this.adminProps);
     }
