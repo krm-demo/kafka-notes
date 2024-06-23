@@ -16,14 +16,12 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
-import org.krmdemo.kafka.util.inspect.JsonResult;
 import org.krmdemo.kafka.util.inspect.JsonResult.AnyError;
 import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
 import org.krmdemo.kafka.util.inspect.KafkaFutureErrors;
 
 import java.util.*;
 
-import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -114,8 +112,8 @@ public class KafkaInspector {
                 log.warn("skip describing the topic '{}'", topicName);
                 continue;
             }
-            KafkaBrokerTopic kbt = new KafkaBrokerTopic();
-            kbt.setTopicDescription(td);
+            KafkaBrokerTopic kbt = new KafkaBrokerTopic(td);
+            //kbt.setTopicDescription(td);
             result.put(topicName, kbt);
 
             List<Integer> partitions = td.partitions().stream().map(TopicPartitionInfo::partition).toList();
