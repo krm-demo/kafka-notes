@@ -1,6 +1,7 @@
 package org.krmdemo.kafka.util.inspect;
 
 
+import com.fasterxml.jackson.databind.ser.std.ByteArraySerializer;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -12,13 +13,19 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
 import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
 import org.krmdemo.kafka.util.inspect.JsonResult.OffsetRange;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
+import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -28,6 +35,7 @@ import static org.apache.kafka.clients.admin.AdminClientConfig.CLIENT_DNS_LOOKUP
 import static org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
+import static org.krmdemo.kafka.util.KafkaUtils.tpKey;
 import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
 import static org.krmdemo.kafka.util.inspect.JsonResult.dumpAsJson;
 import static org.krmdemo.kafka.util.inspect.KafkaFutureErrors.kfGet;
@@ -149,5 +157,63 @@ public class KafkaInspector {
     private Map<TopicPartition, ListOffsetsResultInfo> listOffsets(KafkaBrokerSnapshot snapshot, OffsetSpec offsetSpec) {
         Map<TopicPartition, OffsetSpec> tpoSpecMap = snapshot.topicPartitionSpecMap(offsetSpec);
         return kfGet(adminClient.listOffsets(tpoSpecMap).all()).orElse(emptyMap());
+    }
+
+    /**
+     * Producing the kafka-record into the kafka-topic with passed name using automatic detection of
+     * kafka-partition within that kafka-topic (which is selected accordingly to the value of
+     * {@link ProducerRecord#key() kafka-message key}).
+     * <p/>
+     * If a kafka-record was produced successfully - the method returns a permamnent {@link KafkaRecordKey kafka-record-key},
+     * which could be used later to locate and fetch this particular kafka-record from the whole kafka-cluster.
+     *
+     * @param topicName the name of kafka-topic
+     * @param kafkaRecord a kafka-record to produce into the kafka-topic and kafka-partition
+     * @return a unique identifier of kafka-record within the whole kafka-cluster
+     */
+    public KafkaRecordKey produce(String topicName, KafkaRecordBin kafkaRecord) {
+        return this.produce(topicName, null, kafkaRecord);
+    }
+
+    /**
+     * Producing the kafka-record into the kafka-topic with passed name and optional sequence-number of
+     * the kafka-partition within that kafka-topic (if partition-number is missed - the kafka-broker will select
+     * the partition according to value of {@link ProducerRecord#key() kafka-message key}).
+     * <p/>
+     * If a kafka-record was produced successfully - the method returns a permamnent {@link KafkaRecordKey kafka-record-key},
+     * which could be used later to locate and fetch this particular kafka-record from the whole kafka-cluster.
+     *
+     * @param topicName the name of kafka-topic
+     * @param partitionNum optional sequence-number of kafka-partition within the kafka-topic
+     * @param kafkaRecord a kafka-record to produce into the kafka-topic and kafka-partition
+     * @return a unique identifier of kafka-record within the whole kafka-cluster
+     */
+    public KafkaRecordKey produce(String topicName, Integer partitionNum, KafkaRecordBin kafkaRecord) {
+        Map<String, Object> producerProps = new LinkedHashMap<>(adminProps);
+        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
+
+        String destination = partitionNum == null ?
+            format("topic(%s)", topicName) :
+            format("topic-partition(%s)", tpKey(topicName, partitionNum));
+        log.debug("producing the record to {} --> {}", destination, kafkaRecord);
+
+        try (var producer = new KafkaProducer<byte[],byte[]>(producerProps)) {
+            ProducerRecord<byte[],byte[]> producerRecord = new ProducerRecord<>(
+                topicName,
+                partitionNum,
+                kafkaRecord.binaryKey(),
+                kafkaRecord.binaryValue(),
+                kafkaRecord.headers()
+            );
+            RecordMetadata recordMetadata = producer.send(producerRecord).get();
+            return KafkaRecordKey.builder()
+                .timestamp(recordMetadata.timestamp())
+                .tpKey(tpKey(recordMetadata.topic(), recordMetadata.partition()))
+                .offset(recordMetadata.offset())
+                .build();
+        } catch (ExecutionException | InterruptedException ex) {
+            throw new IllegalStateException("could not send the kafka-record to " + destination, ex);
+        }
     }
 }
