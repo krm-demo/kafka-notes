@@ -1,4 +1,4 @@
-package org.krmdemo.kafka.util.inspect.admin;
+package org.krmdemo.kafka.util.inspect;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -9,7 +9,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.common.TopicPartition;
 import org.krmdemo.kafka.util.KafkaUtils;
-import org.krmdemo.kafka.util.inspect.JsonResult;
 
 import java.time.Instant;
 import java.time.ZoneId;

@@ -80,11 +80,11 @@ public class StreamUtils {
      * @param <T> the type of the input elements
      * @param <K> the output type of the key mapping function
      * @param <U> the output type of the value mapping function
-     * @param keyMapper a mapping function to produce keys
-     * @param valueMapper a mapping function to produce values
+     * @param keyMapper a <i>key-mapping</i> function to produce keys
+     * @param valueMapper a <i>value-mapping</i> function to produce values
      * @return a {@code Collector} which collects elements into a {@link SortedMap}
-     * whose keys are the result of applying a key mapping function to the input
-     * elements, and whose values are the result of applying a value mapping
+     * whose keys are the result of applying a <i>key-mapping</i> function to the input
+     * elements, and whose values are the result of applying a <i>value-mapping</i>
      * function to all input elements equal to the key and combining them
      * using the merge function
      */
@@ -105,8 +105,8 @@ public class StreamUtils {
      * @param mergeFunction a merge function, used to resolve collisions between values
      *                      associated with the same key, as supplied to {@link Map#merge(Object, Object, BiFunction)}
      * @return a {@code Collector} which collects elements into a {@link SortedMap}
-     * whose keys are the result of applying a key mapping function to the input
-     * elements, and whose values are the result of applying a value mapping
+     * whose keys are the result of applying a <i>key-mapping</i> function to the input
+     * elements, and whose values are the result of applying a <i>value-mapping</i>
      * function to all input elements equal to the key and combining them
      * using the merge function
      */
@@ -118,6 +118,11 @@ public class StreamUtils {
         return Collectors.toMap(keyMapper, valueMapper, mergeFunction, TreeMap::new);
     }
 
+    /**
+     * Transforming the old-school {@link Properties la-la-la} into {@link SortedMap SortedMap&lt;String,String&gt;}
+     * @param props
+     * @return
+     */
     public static SortedMap<String, String> toSortedMap(Properties props) {
         return props.entrySet().stream().collect(toMap(
             e -> "" + e.getKey(), e -> "" + e.getValue(), (x, y) -> y, TreeMap::new));

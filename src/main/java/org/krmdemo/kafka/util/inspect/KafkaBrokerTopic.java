@@ -1,4 +1,4 @@
-package org.krmdemo.kafka.util.inspect.admin;
+package org.krmdemo.kafka.util.inspect;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

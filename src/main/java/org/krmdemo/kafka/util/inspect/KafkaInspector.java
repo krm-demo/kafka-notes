@@ -1,4 +1,4 @@
-package org.krmdemo.kafka.util.inspect.admin;
+package org.krmdemo.kafka.util.inspect;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -18,7 +18,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.krmdemo.kafka.util.inspect.JsonResult.AnyError;
 import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
-import org.krmdemo.kafka.util.inspect.KafkaFutureErrors;
 
 import java.util.*;
 
