@@ -11,6 +11,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -132,7 +133,7 @@ public class JsonResult {
         private final NodeInfo leaderNode;
         private final List<NodeInfo> replicas;
         private final List<NodeInfo> replicasInSync;
-        private final OffsetRange range = null;
+        @Setter private OffsetRange range = null;
         public PartitionInfo(TopicPartitionInfo tpi) {
             this.partitionNum = tpi.partition();
             this.leaderNode = new NodeInfo(tpi.leader());

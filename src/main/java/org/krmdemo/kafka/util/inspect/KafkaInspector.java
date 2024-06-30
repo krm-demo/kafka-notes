@@ -1,46 +1,47 @@
 package org.krmdemo.kafka.util.inspect;
 
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.admin.DescribeTopicsOptions;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
-import org.apache.kafka.clients.admin.ListTopicsOptions;
+import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
 import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.TopicPartitionInfo;
-import org.krmdemo.kafka.util.inspect.JsonResult.AnyError;
 import org.krmdemo.kafka.util.inspect.JsonResult.ClusterInfo;
+import org.krmdemo.kafka.util.inspect.JsonResult.OffsetRange;
 
 import java.util.*;
 
-import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
-import static java.util.Collections.emptySortedMap;
-import static java.util.Collections.unmodifiableSortedMap;
 import static java.util.function.UnaryOperator.identity;
 import static org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.clients.admin.AdminClientConfig.CLIENT_DNS_LOOKUP_CONFIG;
 import static org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
-import static org.krmdemo.kafka.util.KafkaUtils.streamTopicPartition;
-import static org.krmdemo.kafka.util.StreamUtils.toLinkedMap;
 import static org.krmdemo.kafka.util.StreamUtils.toSortedMap;
 import static org.krmdemo.kafka.util.inspect.JsonResult.dumpAsJson;
 import static org.krmdemo.kafka.util.inspect.KafkaFutureErrors.kfGet;
 
+/**
+ * A wrapper over {@link AdminClient kafka-admin-client} that allows to reconcile the state of kafka-storage.
+ */
 @Slf4j
 public class KafkaInspector {
+
+    private static final DescribeClusterOptions DESCRIBE_CLUSTER_OPTIONS =
+        new DescribeClusterOptions().includeAuthorizedOperations(true);
+    private static final DescribeTopicsOptions DESCRIBE_TOPICS_OPTIONS =
+        new DescribeTopicsOptions().includeAuthorizedOperations(false);
 
     private static final Map<String, Object> CLOUD_CONFIG_PROPS = new LinkedHashMap<>() {{
         put(CLIENT_DNS_LOOKUP_CONFIG, "use_all_dns_ips");
@@ -54,49 +55,55 @@ public class KafkaInspector {
             password='+wulJ8RvIrOBvPu2O+cdhgcwvoeBUhiNyykoJfkEYYK9x+EjwMapTOwLWVi1wRBi';""");
     }};;
 
-    private static final DescribeClusterOptions DESCRIBE_CLUSTER_OTIONS =
-        new DescribeClusterOptions().includeAuthorizedOperations(true);
-    private static final DescribeTopicsOptions DESCRIBE_TOPICS_OTIONS =
-        new DescribeTopicsOptions().includeAuthorizedOperations(true);
-
-
     private final Map<String, Object> adminProps = new LinkedHashMap<>(CLOUD_CONFIG_PROPS);
-    private ClusterInfo clusterInfo = null;
-    private SortedMap<String, KafkaBrokerTopic> topics = emptySortedMap();
-    private List<AnyError> listTopicsErrors = null;
+    private final AdminClient adminClient;
+    private KafkaBrokerSnapshot lastSnapshot = null;
 
-    private final transient AdminClient adminClient;
-
+    /**
+     * @param bootstrapServers comma-separated list of kafka-brokers addresses ({@code "host:port"})
+     */
     public KafkaInspector(@NonNull String bootstrapServers) {
         this.adminProps.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         this.adminClient = KafkaAdminClient.create(this.adminProps);
     }
 
-    @JsonProperty("bootstrapServersList")
-    public List<String> bootstrapServersList() {
-        String bootstrapServers = (String)this.adminProps.get(BOOTSTRAP_SERVERS_CONFIG);
-        return asList(StringUtils.split(bootstrapServers, ",;"));
+    public KafkaBrokerSnapshot lastSnapshot() {
+        return this.lastSnapshot;
     }
 
-    @JsonProperty("topics")
-    public SortedMap<String, KafkaBrokerTopic> topics() {
-        return unmodifiableSortedMap(topics);
+    public boolean hasLastSnapshot() {
+        return lastSnapshot() != null;
     }
 
-    public ReconcileInfo refresh() {
-        this.clusterInfo = new ClusterInfo(adminClient.describeCluster(DESCRIBE_CLUSTER_OTIONS));
-        ReconcileInfo reconcileInfo = new ReconcileInfo();
-        reconcileInfo.prevState = this.topics;
-        reconcileInfo.nextState = listTopics();
-        this.topics = reconcileInfo.nextState;
-        return reconcileInfo;
+    /**
+     * @return a snapshot of the current kafka-cluster state
+     */
+    public KafkaBrokerSnapshot takeSnapshot() {
+        KafkaBrokerSnapshot snapshot = new KafkaBrokerSnapshot(this.adminProps);
+        snapshot.setClusterInfo(this.takeClusterInfo());
+        refreshTopicsMap(snapshot);
+        refreshOffsets(snapshot);
+        this.lastSnapshot = snapshot;
+        return snapshot;
     }
 
-    public SortedMap<String, KafkaBrokerTopic> listTopics() {
-        log.info("start loading topics for " + bootstrapServersList());
+    /**
+     * @return a cluster-info that is a part of whole (@link {@link KafkaBrokerSnapshot kafka-snapshot}
+     *         (could be used separately as a health-check end-point for the remote kafka-cluster)
+     */
+    public ClusterInfo takeClusterInfo() {
+        return new ClusterInfo(adminClient.describeCluster(DESCRIBE_CLUSTER_OPTIONS));
+    }
+
+    public void refreshTopicsMap(KafkaBrokerSnapshot snapshot) {
+        log.info("start refreshing the topics for " + snapshot);
         KafkaFutureErrors.clear();
-        SortedMap<String, KafkaBrokerTopic> result = new TreeMap<>();
-        ListTopicsResult ltr = adminClient.listTopics(new ListTopicsOptions().listInternal(true));
+        snapshot.getTopicsMap().clear();
+        snapshot.setRefreshTopicsErrors(null);
+
+        // in order to retrieve the information about internal topics like "__consumer_offset" the parameter
+        // `new ListTopicOptions().listInternal(true)` should be provided to method `listTopics(...)`:
+        ListTopicsResult ltr = adminClient.listTopics();
         Set<String> topicNames = kfGet(ltr.names()).orElse(emptySet());
 
         Collection<TopicListing> topicListings = kfGet(ltr.listings()).orElse(emptyList());
@@ -104,43 +111,43 @@ public class KafkaInspector {
             .collect(toSortedMap(TopicListing::name, identity()));
         log.info("topicListingsMap --> " + dumpAsJson(topicListingsMap));
 
-        for (var entry : adminClient.describeTopics(topicNames, DESCRIBE_TOPICS_OTIONS).topicNameValues().entrySet()) {
+        Map<String, KafkaFuture<TopicDescription>> topicNameValues =
+            adminClient.describeTopics(topicNames, DESCRIBE_TOPICS_OPTIONS).topicNameValues();
+        for (var entry : topicNameValues.entrySet()) {
             String topicName = entry.getKey();
-            TopicDescription td = kfGet(entry.getValue()).orElse(null);
-            if (td == null) {
+            Optional<TopicDescription> td = kfGet(entry.getValue());
+            if (td.isEmpty()) {
                 log.warn("skip describing the topic '{}'", topicName);
                 continue;
             }
-            KafkaBrokerTopic kbt = new KafkaBrokerTopic(td);
-            //kbt.setTopicDescription(td);
-            result.put(topicName, kbt);
-
-            List<Integer> partitions = td.partitions().stream().map(TopicPartitionInfo::partition).toList();
-            log.info("::" + entry.getKey() + ":: " + partitions  + " --> " + td.authorizedOperations());
-            Map<TopicPartition, OffsetSpec> tpoMapEarliest = streamTopicPartition(td, topicName)
-                .collect(toLinkedMap(identity(), tp -> OffsetSpec.earliest()));
-            var tpToEarliest = kfGet(adminClient.listOffsets(tpoMapEarliest).all()).orElse(emptyMap());
-            Map<TopicPartition, OffsetSpec> tpoMapLatest = streamTopicPartition(td, topicName)
-                .collect(toLinkedMap(identity(), tp -> OffsetSpec.latest()));
-            var tpToLatest = kfGet(adminClient.listOffsets(tpoMapLatest).all()).orElse(emptyMap());
-            streamTopicPartition(td, topicName).forEach(tp -> {
-                log.info(tp.topic() + "[" + tp.partition() + "]: ( " +
-                    tpToEarliest.get(tp).offset() + " ; " +
-                    tpToLatest.get(tp).offset() + " )");
-            });
+            snapshot.getTopicsMap().put(topicName, new KafkaBrokerTopic(td.get()));
         }
-        this.listTopicsErrors = KafkaFutureErrors.lastErrors();
-        log.info("finish loading topics for " + bootstrapServersList() + ": " + result.size() + " were loaded");
-        return result;
+
+        snapshot.setRefreshTopicsErrors(KafkaFutureErrors.lastErrors());
+        log.debug("finish refreshing the topics for {} --> {}",
+            snapshot, snapshot.getTopicsMap().keySet());
     }
 
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + " - " + bootstrapServersList();
+    private void refreshOffsets(KafkaBrokerSnapshot snapshot) {
+        log.info("start refreshing the offsets of topic-partitions for " + snapshot);
+        KafkaFutureErrors.clear();
+        snapshot.setRefreshOffsetsErrors(null);
+
+        Map<TopicPartition, ListOffsetsResultInfo> tpoResMapEarliest = listOffsets(snapshot, OffsetSpec.earliest());
+        Map<TopicPartition, ListOffsetsResultInfo> tpoResMapLatest = listOffsets(snapshot, OffsetSpec.latest());
+        snapshot.topicPartitionStream().forEach(tp -> {
+            ListOffsetsResultInfo offsetsEarliest = tpoResMapEarliest.get(tp);
+            ListOffsetsResultInfo offsetsLatest = tpoResMapLatest.get(tp);
+            snapshot.partitionInfo(tp).setRange(new OffsetRange(offsetsEarliest, offsetsLatest));
+        });
+
+        snapshot.setRefreshOffsetsErrors(KafkaFutureErrors.lastErrors());
+        log.debug("finish refreshing the offsets of topic-partitions for {} --> {}",
+            snapshot, snapshot.partitionsMap().keySet());
     }
 
-    public static class ReconcileInfo {
-        private SortedMap<String, KafkaBrokerTopic> prevState = emptySortedMap();
-        private SortedMap<String, KafkaBrokerTopic> nextState = emptySortedMap();
+    private Map<TopicPartition, ListOffsetsResultInfo> listOffsets(KafkaBrokerSnapshot snapshot, OffsetSpec offsetSpec) {
+        Map<TopicPartition, OffsetSpec> tpoSpecMap = snapshot.topicPartitionSpecMap(offsetSpec);
+        return kfGet(adminClient.listOffsets(tpoSpecMap).all()).orElse(emptyMap());
     }
 }
